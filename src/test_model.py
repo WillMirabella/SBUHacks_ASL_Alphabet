@@ -14,6 +14,7 @@ def load_and_preprocess_test_data(test_data_dir, target_size=(150, 150)):
         image = cv2.imread(image_path)
         if image is not None:
             image = cv2.resize(image, target_size)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # Convert to grayscale
             image = image / 255.0  # Normalize pixel values
             test_images.append(image)
     return np.array(test_images)
@@ -23,6 +24,9 @@ test_data_dir = "data/asl_train/test_model"
 
 # Load and preprocess test data
 test_images = load_and_preprocess_test_data(test_data_dir)
+
+# Reshape images to add channel dimension
+test_images = np.expand_dims(test_images, axis=-1)
 
 # Make predictions on test images
 predictions = model.predict(test_images)
@@ -35,3 +39,4 @@ predicted_letters = [chr(ord('A') + class_idx) for class_idx in predicted_classe
 
 # Print the predicted letters
 print("Predicted letters:", predicted_letters)
+
