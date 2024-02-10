@@ -5,7 +5,7 @@ import cv2
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
-NUM_EPOCHS = 20
+NUM_EPOCHS = 5
 BATCH_SIZE = 64
 
 def load_data(data_dir):
@@ -77,6 +77,7 @@ def build_model(input_shape, num_classes):
         tf.keras.layers.MaxPooling2D((2, 2)),
         tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dropout(0.5),  # Dropout layer with 50% dropout rate
         tf.keras.layers.Dense(num_classes, activation='softmax')
     ])
     
@@ -86,6 +87,7 @@ def build_model(input_shape, num_classes):
                   metrics=['accuracy'])
     
     return model
+
 
 
 
@@ -108,7 +110,7 @@ def evaluate_model(model, X_test, y_test):
 
 def main():
     # Load data
-    data_dir = "data/asl_train2/"
+    data_dir = "data/asl_train3/"
     (train_features, train_labels), (test_features, test_labels) = load_data(data_dir)
     
     # Check the size of the datasets

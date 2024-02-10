@@ -5,7 +5,7 @@ import numpy as np
 import time
 
 class HandDetector:
-    def __init__(self, mode=False, max_hands=2, model_complexity=1, detection_con=0.5, tracking_con=0.5, model_path='model1'):
+    def __init__(self, mode=False, max_hands=2, model_complexity=1, detection_con=0.5, tracking_con=0.5, model_path='models/model1'):
         self.mode = mode
         self.max_hands = max_hands
         self.model_complexity = model_complexity
@@ -55,17 +55,15 @@ class HandDetector:
         return predicted_letter
 
     def extract_features(self, img):
-        # Convert image to grayscale
-        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        
         # Resize the image to match the model's expected input size
-        resized_img = cv2.resize(gray_img, (150, 150))
-        
+        resized_img = cv2.resize(img, (150, 150))
+        # Convert image to grayscale
+        gray_img = cv2.cvtColor(resized_img, cv2.COLOR_BGR2GRAY)
+        # Add channel dimension to match expected input shape
+        gray_img = np.expand_dims(gray_img, axis=-1)
         # Normalize the pixel values
-        normalized_img = resized_img / 255.0
-        
-        # Reshape for the model (adding batch dimension)
-        return normalized_img.reshape((150, 150, 1))
+        normalized_img = gray_img / 255.0
+        return normalized_img
 
     def decode_predictions(self, predictions):
         predicted_index = np.argmax(predictions)
