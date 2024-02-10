@@ -1,18 +1,34 @@
 import cv2
-import numpy as np
-from hand_detection import HandDetector  # Assuming hand_detection.py contains the HandDetector class
-from gtts import gTTS
-import os
+from hand_detection import HandDetector
+import pyttsx3
+import time
+
+# Global variable to track the time of the last spoken letter
+last_spoken_time = 0
 
 def text_to_speech(text):
-    # Create a gTTS object
-    tts = gTTS(text=text, lang='en')
+    global last_spoken_time
     
-    # Save the audio to a file
-    tts.save("output.mp3")
-    
-    # Play the audio file
-    os.system("afplay output.mp3")
+    # Get the current time
+    current_time = time.time()
+
+    # Check if the cooldown period (1 second) has passed since the last spoken letter
+    if current_time - last_spoken_time >= 1:
+        # Initialize the TTS engine
+        engine = pyttsx3.init()
+
+        # Set properties (optional)
+        engine.setProperty('rate', 150)  # Speed of speech
+        engine.setProperty('volume', 1)  # Volume level (0.0 to 1.0)
+
+        # Convert text to speech
+        engine.say(text.lower())
+
+        # Wait for the speech to finish
+        engine.runAndWait()
+
+        # Update the last spoken time
+        last_spoken_time = current_time
 
 def main():
     # Initialize the hand detector
@@ -28,17 +44,16 @@ def main():
             break
 
         # Find hands in the frame
-        frame_with_hands = detector.find_hands(frame)
-        landmark_list = detector.find_position(frame_with_hands, draw=False)
+        frame_with_hands, bbox = detector.find_hands(frame)
 
-        if landmark_list:
+        if bbox:
             # Pass the frame for classification
-            asl_letter = detector.classify_asl_letter(frame_with_hands, landmark_list)
-            if asl_letter is not None:
-                asl_letter_str = detector.decode_predictions(asl_letter)
+            predicted_letter, _ = detector.classify_asl_letter(frame_with_hands, bbox)
+            if predicted_letter is not None:
+                asl_letter_str, _ = detector.decode_predictions(predicted_letter)
                 print(f"Predicted ASL Letter: {asl_letter_str}")
 
-                # Convert ASL letter to speech
+                # Convert ASL letter to speech with cooldown
                 text_to_speech(asl_letter_str)
 
         # Display the frame

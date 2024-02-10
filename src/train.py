@@ -5,7 +5,7 @@ import cv2
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
-NUM_EPOCHS = 5
+NUM_EPOCHS = 3
 BATCH_SIZE = 64
 
 def load_data(data_dir):

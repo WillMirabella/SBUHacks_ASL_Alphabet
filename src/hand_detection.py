@@ -3,9 +3,11 @@ import mediapipe as mp
 import tensorflow as tf
 import numpy as np
 import time
+from gtts import gTTS
+import pygame
 
 class HandDetector:
-    def __init__(self, mode=False, max_hands=2, model_complexity=1, detection_con=0.5, tracking_con=0.5, model_path='models/model1'):
+    def __init__(self, mode=False, max_hands=2, model_complexity=1, detection_con=0.5, tracking_con=0.5, model_path='models/model0'):
         self.mode = mode
         self.max_hands = max_hands
         self.model_complexity = model_complexity
@@ -16,94 +18,115 @@ class HandDetector:
         self.hands = self.mp_hands.Hands(self.mode, self.max_hands, self.model_complexity, self.detection_con, self.tracking_con)
         self.mp_draw = mp.solutions.drawing_utils
 
-        # Load the TensorFlow model
         self.model = tf.keras.models.load_model(model_path)
+
+        # Initialize pygame for audio playback
+        pygame.init()
+        self.speech_rate = 150  # Speech rate in words per minute
 
     def find_hands(self, img, draw=True):
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.results = self.hands.process(img_rgb)
-
+        bbox = []
         if self.results.multi_hand_landmarks:
             for hand_landmarks in self.results.multi_hand_landmarks:
                 if draw:
                     self.mp_draw.draw_landmarks(img, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
-        return img
+                x_min = min(lm.x for lm in hand_landmarks.landmark) * img.shape[1]
+                x_max = max(lm.x for lm in hand_landmarks.landmark) * img.shape[1]
+                y_min = min(lm.y for lm in hand_landmarks.landmark) * img.shape[0]
+                y_max = max(lm.y for lm in hand_landmarks.landmark) * img.shape[0]
+                
+                # Expand the bounding box by 20%
+                width_increase = (x_max - x_min) * 0.80
+                height_increase = (y_max - y_min) * 0.40
+                x_min = int(max(x_min - width_increase / 2, 0))
+                x_max = int(min(x_max + width_increase / 2, img.shape[1]))
+                y_min = int(max(y_min - height_increase / 2, 0))
+                y_max = int(min(y_max + height_increase / 2, img.shape[0]))
+                
+                bbox.append((x_min, y_min, x_max, y_max))
+        return img, bbox
 
-    def find_position(self, img, hand_no=0, draw=True):
-        landmark_list = []
-        if self.results.multi_hand_landmarks:
-            selected_hand = self.results.multi_hand_landmarks[hand_no]
+    def classify_asl_letter(self, img, bbox):
+        if not bbox:  # Check if bbox list is empty
+            return None, 0  # No hand detected, return None and 0 confidence
+        
+        # Assuming we only care about the first hand detected
+        x_min, y_min, x_max, y_max = bbox[0]
+        # Crop the image to the bounding box
+        hand_img = img[y_min:y_max, x_min:x_max]
 
-            for id, lm in enumerate(selected_hand.landmark):
-                h, w, c = img.shape
-                cx, cy = int(lm.x * w), int(lm.y * h)
-                landmark_list.append((id, cx, cy))
-                if draw:
-                    cv2.circle(img, (cx, cy), 7, (255, 0, 255), cv2.FILLED)
-        return landmark_list
+        if hand_img.size == 0:  # Check if the cropped image is empty
+            return None, 0  # Return None and 0 confidence if the crop is empty
 
-    def classify_asl_letter(self, img, landmark_list):
-        if len(landmark_list) == 0:
-            return None  # No hand detected
-
-        # Prepare the image for prediction
-        preprocessed_img = self.extract_features(img)
-
-        # Predict the letter
+        preprocessed_img = self.extract_features(hand_img)
         predicted_letter = self.model.predict(np.array([preprocessed_img]))
-
-        return predicted_letter
+        return predicted_letter, 1  # Returning a dummy confidence for simplicity
 
     def extract_features(self, img):
-        # Resize the image to match the model's expected input size
-        resized_img = cv2.resize(img, (150, 150))
-        # Convert image to grayscale
-        gray_img = cv2.cvtColor(resized_img, cv2.COLOR_BGR2GRAY)
-        # Add channel dimension to match expected input shape
-        gray_img = np.expand_dims(gray_img, axis=-1)
-        # Normalize the pixel values
-        normalized_img = gray_img / 255.0
-        return normalized_img
+        # Ensure this handles the case where img might be empty or too small after cropping
+        if img.size == 0:
+            return np.zeros((150, 150, 1))  # Return a blank array if the crop is empty
+        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        resized_img = cv2.resize(gray_img, (150, 150))
+        normalized_img = resized_img / 255.0
+        return normalized_img.reshape((150, 150, 1))
 
     def decode_predictions(self, predictions):
+        predictions = np.squeeze(predictions)
         predicted_index = np.argmax(predictions)
-        if predicted_index < 26:
-            predicted_letter = chr(predicted_index + 65)
-        elif predicted_index == 26:
-            predicted_letter = 'Space'
-        elif predicted_index == 27:
-            predicted_letter = 'Delete'
+        confidence = np.max(predictions)
+
+        # Mapping based on dataset indices
+        mapping = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+        if predicted_index < len(mapping):
+            predicted_letter = mapping[predicted_index]
         else:
-            predicted_letter = 'Nothing'
-        return predicted_letter
+            predicted_letter = "Unknown"
+        
+        return predicted_letter, confidence
+
+    def aggregate_predicted_letters(self, predicted_letters):
+        return ''.join(predicted_letters)
+
+    def speak_predicted_letters(self, predicted_letters):
+        text_to_speak = self.aggregate_predicted_letters(predicted_letters)
+        speech = gTTS(text=text_to_speak, lang='en', slow=False)
+        speech.save("predicted_letters.mp3")
+        pygame.mixer.music.load("predicted_letters.mp3")
+        pygame.mixer.music.play()
 
 def main():
     cap = cv2.VideoCapture(0)
-    detector = HandDetector()
+    detector = HandDetector(model_path='models/model0')  # Ensure the correct model path is provided
 
-    last_asl_letter = None
+    predicted_letters = []
     last_detection_time = time.time()
-    detection_interval = 1.0
+    aggregation_interval = 5.0  # Aggregate predicted letters over 5 seconds
 
     while True:
         success, img = cap.read()
         if not success:
-            print("Failed to capture image")
             break
 
-        img = detector.find_hands(img)
-        landmark_list = detector.find_position(img, draw=False)
+        img, bbox = detector.find_hands(img)
+        if bbox:
+            predicted_letter, _ = detector.classify_asl_letter(img, bbox)
+            if predicted_letter is not None:
+                asl_letter_str, confidence = detector.decode_predictions(predicted_letter)
+                print(f"Predicted ASL Letter: {asl_letter_str} with confidence {confidence * 100:.2f}%")
+                predicted_letters.append(asl_letter_str)
 
-        if len(landmark_list) != 0:
-            # Pass the whole image for classification
-            asl_letter = detector.classify_asl_letter(img, landmark_list)
-            current_time = time.time()
-            if asl_letter is not None:
-                asl_letter_str = detector.decode_predictions(asl_letter)
-                if asl_letter_str != last_asl_letter or (current_time - last_detection_time) >= detection_interval:
-                    print(f"Predicted ASL Letter: {asl_letter_str}")
-                    last_asl_letter = asl_letter_str
+                current_time = time.time()
+                if current_time - last_detection_time >= aggregation_interval:
+                    #detector.speak_predicted_letters(predicted_letters)
+                    predicted_letters = []
                     last_detection_time = current_time
+
+                for x_min, y_min, x_max, y_max in bbox:
+                    cv2.rectangle(img, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+                    cv2.putText(img, f"{asl_letter_str}", (x_min, y_min - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         cv2.imshow("Hand Tracking", img)
         if cv2.waitKey(1) & 0xFF == ord('q'):
