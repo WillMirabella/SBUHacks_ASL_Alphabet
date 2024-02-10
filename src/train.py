@@ -108,7 +108,7 @@ def evaluate_model(model, X_test, y_test):
 
 def main():
     # Load data
-    data_dir = "data/asl_train/"
+    data_dir = "data/asl_train2/"
     (train_features, train_labels), (test_features, test_labels) = load_data(data_dir)
     
     # Check the size of the datasets
