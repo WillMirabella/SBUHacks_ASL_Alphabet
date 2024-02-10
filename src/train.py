@@ -55,7 +55,7 @@ def preprocess_image(image, target_size):
     image = cv2.resize(image, target_size)
     
     # Convert image to grayscale (if needed)
-    # image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     
     # Normalize pixel values to range [0, 1]
     image = image / 255.0
@@ -88,6 +88,7 @@ def build_model(input_shape, num_classes):
     return model
 
 
+
 # Train the model
 def train_model(model, train_data):
     train_features, train_labels = train_data
@@ -115,7 +116,7 @@ def main():
     print("Test samples:", len(test_features))
     
     # Build the model
-    input_shape = train_features[0].shape
+    input_shape = input_shape = (*train_features[0].shape, 1)
     num_classes = len(np.unique(train_labels))
     model = build_model(input_shape, num_classes)
     
