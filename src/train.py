@@ -3,30 +3,20 @@ import numpy as np
 import tensorflow as tf
 import cv2
 from sklearn.model_selection import train_test_split
-# Add any other necessary imports for your specific model
+from sklearn.preprocessing import LabelEncoder
 
-
-import os
-import cv2
-import numpy as np
-
-NUM_EPOCHS=20
-BATCH_SIZE=64
+NUM_EPOCHS = 20
+BATCH_SIZE = 64
 
 def load_data(data_dir):
-    train_dir = os.path.join(data_dir, 'asl_alphabet_train')
-    test_dir = os.path.join(data_dir, 'asl_test')
-
-    (train_features, train_labels) = load_dataset(train_dir)
-    (test_features, test_labels) = load_dataset(test_dir)
-
+    train_features, train_labels = load_dataset(os.path.join(data_dir, 'asl_alphabet_train'))
+    test_features, test_labels = load_dataset(os.path.join(data_dir, 'asl_test'))
     return (train_features, train_labels), (test_features, test_labels)
-
-
 
 def load_dataset(dataset_dir, target_size=(150, 150)):
     features = []
     labels = []
+    label_encoder = LabelEncoder()
     
     # Get list of subdirectories (each subdirectory represents a class)
     classes = sorted(os.listdir(dataset_dir))
@@ -49,6 +39,9 @@ def load_dataset(dataset_dir, target_size=(150, 150)):
             
             # Append label to labels list
             labels.append(class_name)  # Use class name as label
+    
+    # Encode labels
+    labels = label_encoder.fit_transform(labels)
         
     # Convert lists to numpy arrays
     features = np.array(features)
@@ -69,7 +62,7 @@ def preprocess_image(image, target_size):
     
     # Add any other preprocessing steps here (e.g., data augmentation, noise removal, contrast enhancement)
     
-    return image
+    return image 
 
 
 
@@ -96,14 +89,14 @@ def build_model(input_shape, num_classes):
 
 
 # Train the model
-def train_model(model, train_data, val_data):
+def train_model(model, train_data):
     train_features, train_labels = train_data
-    val_features, val_labels = val_data
     
     # Train the model
-    model.fit(train_features, train_labels, validation_data=(val_features, val_labels), epochs=NUM_EPOCHS, batch_size=BATCH_SIZE)
+    model.fit(train_features, train_labels, epochs=NUM_EPOCHS, batch_size=BATCH_SIZE)
     
     return model
+
 
 # Evaluate the model
 def evaluate_model(model, X_test, y_test):
@@ -115,23 +108,24 @@ def evaluate_model(model, X_test, y_test):
 def main():
     # Load data
     data_dir = "data/asl_train/"
-    (train_features, train_labels), (test_features, test_labels), (val_features, val_labels) = load_data(data_dir)
+    (train_features, train_labels), (test_features, test_labels) = load_data(data_dir)
     
     # Check the size of the datasets
     print("Train samples:", len(train_features))
     print("Test samples:", len(test_features))
-    print("Validation samples:", len(val_features))
     
     # Build the model
     input_shape = train_features[0].shape
     num_classes = len(np.unique(train_labels))
     model = build_model(input_shape, num_classes)
     
-    # Train the model
-    trained_model = train_model(model, (train_features, train_labels), (val_features, val_labels))
+    trained_model = train_model(model, (train_features, train_labels))
+
 
     # Evaluate the model on the test set
     evaluate_model(trained_model, test_features, test_labels)
+
+    trained_model.save("models/model1")
 
 if __name__ == "__main__":
     main()
