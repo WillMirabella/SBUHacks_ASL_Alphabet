@@ -126,7 +126,7 @@ def main():
 
                 for x_min, y_min, x_max, y_max in bbox:
                     cv2.rectangle(img, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
-                    cv2.putText(img, f"{asl_letter_str}", (x_min, y_min - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                    cv2.putText(img, f"hand", (x_min, y_min - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         cv2.imshow("Hand Tracking", img)
         if cv2.waitKey(1) & 0xFF == ord('q'):

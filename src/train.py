@@ -128,7 +128,7 @@ def main():
     # Evaluate the model on the test set
     evaluate_model(trained_model, test_features, test_labels)
 
-    trained_model.save("models/model1")
+    trained_model.save("models/model2")
 
 if __name__ == "__main__":
     main()
